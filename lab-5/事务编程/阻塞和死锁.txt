@@ -1,0 +1,128 @@
+第三部分 阻塞和死锁
+
+1.运行SQL script建立一个小的银行数据库，account关系包含两列，用户id和账户余额。有两行数据，定期储蓄账户（id为1）和活期储蓄账户（id为2）。
+ANS:
+create table account
+(
+   id int,
+   balance float,
+   Primary Key(id) 
+);
+insert into account values (1, 105.59 );
+insert into account values (2, 1050.59 );
+
+--drop table account cascade;
+
+
+2.开始两个PostgreSQL窗口会话。
+ANS：
+window1
+window2
+
+
+3.两个窗口都开始一个新事务。
+ANS：
+window1:BEGIN TRANSACTION;
+window2:BEGIN TRANSACTION;
+
+
+4.第二个窗口中将活期储蓄账户余额更新为455.75.
+ANS:
+update account
+set balance = 455.75
+where id = 2;
+
+
+5.第一个窗口中将活期储蓄账户余额更新为1400，更新能否成功，解释说明，将答案写入deadlock.txt文档中。
+ANS:
+update account
+set balance = 1400
+where id = 2;
+
+解释说明：
+不能成功更新，因为window2将相关数据上锁，所以window1无法对该数据项进行修改直到window2事务提交。
+
+
+
+6.第二个窗口提交事务，观察第一个窗口变化，解释说明，答案写入deadlock.txt文档中。
+ANS：
+window2：  COMMIT;
+window1:	UPDATE 1
+		Query returned successfully in 9 min 54 secs.
+
+解释说明：
+window1操作执行成功，因为window2事务提交，释放了相关数据的锁，阻塞消失，所以window1中的事务进行的修改可以进行。
+
+
+7.第一个窗口提交事务。
+ANS：
+window1:COMMIT;
+
+
+8.两个窗口开始一个新事务。
+ANS：
+window1:BEGIN TRANSACTION;
+window2:BEGIN TRANSACTION;
+
+
+9.第二个窗口中将定期储蓄账户余额更新为2400.
+ANS:
+update account
+set balance = 2400
+where id = 1;
+
+
+10.第一个窗口中将活期储蓄账户余额更新为2000.
+ANS:
+update account
+set balance = 2000
+where id = 2;
+
+11.第一个窗口中将定期储蓄账户余额更新为1400.
+ANS:
+update account
+set balance = 1400
+where id = 1;
+
+12.第二个窗口中将活期储蓄账户余额更新为1000.50.
+ANS:
+update account
+set balance = 1000.50
+where id = 2;
+
+
+13.观察结果，试着解释原因。结果写入deadlock.txt文档中。
+ANS:
+window1:
+UPDATE 1
+
+Query returned successfully in 38 secs 233 msec.
+
+window2:
+ERROR:  错误:  检测到死锁
+DETAIL:  进程31480等待在事务 836上的ShareLock; 由进程5996阻塞.
+进程5996等待在事务 835上的ShareLock; 由进程31480阻塞.
+HINT:  详细信息请查看服务器日志.
+SQL state: 40P01
+
+解释说明：
+发生了死锁。两个事务在不同的对象上都有锁，每个事务都试图获取另一个事务拥有的上锁的对象。
+
+
+14.在每个窗口中查询表的数据，你观察到了什么？试做说明，将答案写入deadlock.txt文档中。
+ANS:
+select *
+from account
+
+输出结果：
+window1:
+行号		id(integer)		balance(double precision)
+1		2			2000
+2		1			1400
+
+window2:
+ERROR:  错误:  当前事务被终止, 事务块结束之前的查询被忽略
+SQL state: 25P02
+
+解释说明：
+window1正确的执行完了所有操作，而window2发生了死锁所以要重新加载。

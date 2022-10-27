@@ -1,0 +1,409 @@
+练习十 索引选择及查询优化
+
+==========================================================
+一、优化上面的实时评估表。进行下列操作。
+
+1. 利用设置实时评估数据库的说明，构建并填充这些表格。（答案在第五题）
+
+==========================================================
+
+
+2. 当存储表格到数据库的时候，分析表格的存储特征。你将提交最正确的评估每个表格的元组数量以及用于存储每个表格的磁盘的页数。 提交收集这些信息的必要代码以及这些查询的输出。对于每个表格， 你以什么为块因子进行计算？
+
+ANS：
+①create_realestate首先创建关系表
+--drop table customer_lot;
+--drop table customer cascade;
+--drop table lot;
+
+create table customer(
+ customer_id integer,
+ customer_first_name varchar(100),
+ customer_last_name varchar(100));
+
+ create table lot(
+ lot_id integer,
+ lot_description varchar(100),
+ lot_size float,
+ lot_district integer,
+ lot_value float,
+ lot_street_address varchar(100));
+
+ create table customer_lot(
+ customer_id integer,
+ lot_id integer) ;
+
+②导入数据
+copy lot from 'D:\\desktop\\pgdata\\lot.out';
+copy customer from 'D:\\desktop\\pgdata\\customer.out';
+copy customer_lot from 'D:\\desktop\\pgdata\\customer_lot.out';
+
+③查询
+select relname,reltuples,relpages 
+from pg_class
+where relname='lot';
+
+输出结果：
+行号	 relname 	reltuples 	relpages
+1  	lot           	249999   	2688
+
+select relname,reltuples,relpages 
+from pg_class
+where relname='customer';
+
+输出结果：
+行号	 relname 	reltuples 	relpages
+1  	customer   	249999   	1441
+
+select relname,reltuples,relpages 
+from pg_class
+where relname='customer_lot';
+
+输出结果：
+行号	 relname 		reltuples 	relpages
+1  	customer_lot   	249999   	1107
+
+④块因子
+customer的块因子：
+249999/1441=173
+
+customer_lot的块因子：
+249999/1107=226
+
+lot的块因子：
+249999/2688=93
+==========================================================
+
+
+3. 分析上面给出的每个查询的运行时特征。报告PostgreSQL的评估，用于磁盘访问的实际次数以及每次查询花费时间的总计。 提交收集这些数据的必要代码。
+*********************************************************************************************
+（1）. 给定一个大小范围，选出所有范围内的地段号lot_id。该类查询的实例应该是select lot_id from lot where lot_size between 300 and 15000；
+ANS:
+
+explain analyze
+select lot_id
+from lot
+where lot_size between 300 and 15000;
+
+输出结果：
+行号		QUERY PLAN 
+1		Seq Scan on lot  (cost=0.00..6437.98 rows=146744 width=4) (actual time=0.004..26.194 rows=147220 loops=1)
+2		Filter: ((lot_size >= 300::double precision) AND (lot_size <= 15000::double precision))
+3		 Rows Removed by Filter: 102779
+4    		Planning Time: 0.848 ms
+5   		 Execution Time: 296.828 ms
+*********************************************************************************************
+（2）. 给定一个值的范围，选出所有范围内的地段号lot_id。该类查询的实例应该是select lot_id from lot where lot_value between 300 and 15000；
+ANS:
+
+explain analyze
+select lot_id 
+from lot 
+where lot_value between 300 and 15000;
+
+输出结果：
+行号		QUERY PLAN 
+1		Seq Scan on lot  (cost=0.00..6437.98 rows=3785 width=4) (actual time=0.010..211.929 rows=3733 loops=1)
+2		  Filter: ((lot_value >= 300::double precision) AND (lot_value <= 15000::double precision))
+3		  Rows Removed by Filter: 246266
+4    		Planning Time: 0.169 ms
+5    		Execution Time: 215.086 ms
+
+*********************************************************************************************
+（3）. 选出一个指定用户的所有信息。该类查询的实例应该是select * from customer where customer_id=12；
+ANS:
+
+explain analyze
+select * 
+from customer 
+where customer_id=12;
+
+输出结果：
+行号		QUERY PLAN 
+1		Seq Scan on customer  (cost=0.00..4565.99 rows=1 width=16) (actual time=0.008..117.202 rows=1 loops=1)
+2		  Filter: (customer_id = 12)
+3		  Rows Removed by Filter: 249998
+4  		Planning Time: 0.592 ms
+5  		Execution Time: 118.123 ms
+
+*********************************************************************************************
+（4）. 插入新的用户或地段数据。该类查询的实例应该是insert into customer values (250001, 'Vince', 'Smith' ); 
+ANS：
+
+explain analyze
+insert into customer values (250001, 'Vince', 'Smith' );
+
+输出结果：
+行号		QUERY PLAN
+1		Insert on customer  (cost=0.00..0.01 rows=1 width=440) (actual time=0.410..0.410 rows=0 loops=1)
+2		  ->  Result  (cost=0.00..0.01 rows=1 width=440) (actual time=0.000..0.000 rows=1 loops=1)
+3   Planning Time: 0.023 ms
+4   Execution Time: 0.442 ms
+
+**********************************************************************************************
+（5）. 删除一行用户或地段数据。该类查询的实例应该是delete from customer where customer_id='250001'; 
+ANS:
+
+explain analyze
+delete from customer 
+where customer_id='250001';
+
+输出结果：
+行号		QUERY PLAN
+1		Delete on customer  (cost=0.00..4565.99 rows=1 width=6) (actual time=13.258..13.258 rows=0 loops=1)
+2		  ->  Seq Scan on customer  (cost=0.00..4565.99 rows=1 width=6) (actual time=13.238..13.239 rows=1 loops=1)
+3		Filter: (customer_id = 250001)
+4		Rows Removed by Filter: 249999
+5  		 Planning Time: 0.101 ms
+6   		Execution Time: 24.066 ms
+
+**********************************************************************************************
+（6）. 更新一行用户或地段数据。该类查询的实例应该是update customer set customer_first_name='Vinny' where customer_id='249001';
+ANS：
+
+explain analyze
+update customer 
+set customer_first_name='Vinny' where customer_id='249001';
+
+输出结果：
+行号		QUERY PLAN
+1		Update on customer  (cost=0.00..4565.99 rows=1 width=16) (actual time=13.261..13.261 rows=0 loops=1)
+2		  ->  Seq Scan on customer  (cost=0.00..4565.99 rows=1 width=16) (actual time=13.153..13.204 rows=1 loops=1)
+3	        Filter: (customer_id = 249001)
+4	        Rows Removed by Filter: 249998
+5  		 Planning Time: 0.077 ms
+6  		 Execution Time: 41.703 ms
+
+**********************************************************************************************
+（7）. 选出所有点段的平均地段大小。该类查询的实例应该是select avg(lot_size) from lot;
+ANS：
+
+ explain analyze
+select avg(lot_size) from lot;
+
+输出结果：
+行号		QUERY PLAN
+1		Aggregate  (cost=5812.99..5813.00 rows=1 width=8) (actual time=28.504..28.504 rows=1 loops=1)
+2		  ->  Seq Scan on lot  (cost=0.00..5187.99 rows=249999 width=8) (actual time=0.007..12.560 rows=249999 loops=1)
+3  		Planning Time: 0.112 ms
+4  		Execution Time: 133.186 ms
+
+**********************************************************************************************
+==========================================================
+
+4. 对于上面每一个查询，如果可以，建议使用一个索引以提高查询性能。要完整地回答这个问题，你必须描述出你编入索引的列以及你将使用的索引。你必须用一个完整的解释来充分地为你的选择进行辩护。如果一个索引不适合这个查询，那么要清晰地解释原因。注意，你可以只使用PostgreSQL,支持的索引，例如, hash或b-tree。你也可以用聚类.
+
+ANS:
+
+查询（1）和查询（2）的查询都是对于特定值的范围查询，使用的顺序扫描查找。即使可以建立B树索引也可能不会使用，因为查询范围过大。
+查询（3）是根据给出条件查询相等的customer_id。可以建立hash索引帮助查询。
+查询（4）是一个插入操作，不需要建立索引。但是如果查询（2）建立了B树查询的话，查询（3）性能可能会下降。
+查询（5）和查询（6）默认顺序扫描查找。通过customer_id和lot_id可以试用hash索引来提高性能。
+查询（7）是一个聚合函数，对表lot执行顺序扫描。
+
+以上索引，可以通过下列sql语句进行构建：
+create index customer_id_index on customer using hash(customer_id);
+create index lot_id_index on lot using hash(lot_id);
+create index lot_value_index on lot using btree(lot_value);
+create index lot_size_index on lot using btree(lot_size);
+
+lot_value索引可以使用lot_value_index聚合在lot上。
+The lot_size索引可以使用lot_size_index聚合在lot上。
+
+==========================================================
+
+5. 实现那些你之前提出的索引并且分析步骤3中运行的呢些查询的运行时性能。提交一个表，显示出使用索引后，评估的和实际总的磁盘页的访问数以及查询运行时间。基于运行时间，计算出由引表格导致的性能的增加或降低的百分比。如果性能没有因为索引而得到提高，那么你必须解释原因。你可以用下面的表格作为基础。
+
+ANS:
+
+*********************************************************************************************
+（1）. 给定一个大小范围，选出所有范围内的地段号lot_id。该类查询的实例应该是select lot_id from lot where lot_size between 300 and 15000；
+ANS:
+
+explain analyze
+select lot_id
+from lot
+where lot_size between 300 and 15000;
+
+输出结果：
+行号		QUERY PLAN 
+1		Seq Scan on lot  (cost=0.00..6437.98 rows=146744 width=4) (actual time=0.004..131.477 rows=147220 loops=1)
+2		  Filter: ((lot_size >= 300::double precision) AND (lot_size <= 15000::double precision))
+3		  Rows Removed by Filter: 102779
+4    		Planning Time: 0.111 ms
+5    		Execution Time: 141.273 ms
+
+*********************************************************************************************
+（2）. 给定一个值的范围，选出所有范围内的地段号lot_id。该类查询的实例应该是select lot_id from lot where lot_value between 300 and 15000；
+ANS:
+
+explain analyze
+select lot_id 
+from lot 
+where lot_value between 300 and 15000;
+
+输出结果：
+行号		QUERY PLAN 
+1		Bitmap Heap Scan on lot  (cost=83.01..2967.40 rows=3765 width=4) (actual time=0.613..1.845 rows=3733 loops=1)
+2		    Recheck Cond: ((lot_value >= 300::double precision) AND (lot_value <= 15000::double precision))
+3		    ->  Bitmap Index Scan on lot_value_index  (cost=0.00..82.07 rows=3765 width=0) (actual time=0.420..0.420 rows=3733 loops=1)
+4		        Index Cond: ((lot_value >= 300::double precision) AND (lot_value <= 15000::double precision))
+5   		Planning Time: 0.360 ms
+6   		Execution Time: 9.824 ms
+
+*********************************************************************************************
+（3）. 选出一个指定用户的所有信息。该类查询的实例应该是select * from customer where customer_id=12；
+ANS:
+
+explain analyze
+select * 
+from customer 
+where customer_id=12;
+
+输出结果：
+行号		QUERY PLAN 
+1		Index Scan using customer_id_index on customer  (cost=0.00..8.02 rows=1 width=16) (actual time=0.069..0.070 rows=1 loops=1)
+2		  Filter: (customer_id = 12)
+3   		Planning Time: 50.635 ms
+4   		Execution Time: 0.135 ms
+
+
+*********************************************************************************************
+（4）. 插入新的用户或地段数据。该类查询的实例应该是insert into customer values (250001, 'Vince', 'Smith' ); 
+ANS：
+
+explain analyze
+insert into customer values (250001, 'Vince', 'Smith' );
+
+输出结果：
+行号		QUERY PLAN
+1		Insert on customer  (cost=0.00..0.01 rows=1 width=0) (actual time=0.102..0.102 rows=0 loops=1)
+2		  ->  Result  (cost=0.00..0.01 rows=1 width=0) (actual time=0.000..0.000 rows=1 loops=1)
+3   		Planning Time: 0.095 ms
+4   		Execution Time: 0.157 ms
+
+**********************************************************************************************
+（5）. 删除一行用户或地段数据。该类查询的实例应该是delete from customer where customer_id='250001'; 
+ANS:
+
+explain analyze
+delete from customer 
+where customer_id='250001';
+
+输出结果：
+行号		QUERY PLAN
+1		Delete on customer  (cost=0.00..8.02 rows=1 width=6) (actual time=0.018..0.018 rows=0 loops=1)
+2		  ->  Index Scan using customer_id_index on customer  (cost=0.00..8.02 rows=1 width=6) (actual time=0.012..0.012 rows=1 loops=1)
+3		Index Cond: (customer_id = 250001)
+4   		Planning Time: 0.078 ms
+5   		Execution Time: 0.164 ms
+
+**********************************************************************************************
+（6）. 更新一行用户或地段数据。该类查询的实例应该是update customer set customer_first_name='Vinny' where customer_id='249001';
+ANS：
+
+explain analyze
+update customer 
+set customer_first_name='Vinny' where customer_id='249001';
+
+输出结果：
+行号		QUERY PLAN
+1		Update on customer  (cost=0.00..8.02 rows=1 width=16) (actual time=0.037..0.037 rows=0 loops=1)
+2		   ->  Index Scan using customer_id_index on customer  (cost=0.00..8.02 rows=1 width=16) (actual time=0.011..0.012 rows=1 loops=1)
+3	                Index Cond: (customer_id = 249001)
+4   		Planning Time: 0.198 ms
+5   		Execution Time: 0.126 ms
+
+**********************************************************************************************
+（7）. 选出所有点段的平均地段大小。该类查询的实例应该是select avg(lot_size) from lot;
+ANS：
+
+ explain analyze
+select avg(lot_size) from lot;
+
+输出结果：
+行号		QUERY PLAN
+1		Aggregate  (cost=5812.99..5813.00 rows=1 width=8) (actual time=114.592..114.592 rows=1 loops=1)
+2		  ->  Seq Scan on lot  (cost=0.00..5187.99 rows=249999 width=8) (actual time=0.007..12.560 rows=249999 loops=1)
+3   		Planning Time: 0.148 ms
+4   		Execution Time: 118.734 ms
+
+**********************************************************************************************
+
+表格（也是第一题答案）
+
+					Without Index						With Index					Performance
+																			Improvement
+--------------------------------------------------------------------------------------------------------------------------------------------
+Query		Estimated		Actual 	          Actual		Estimated		Actual	           Actual
+Number	Disk                         Disk                         Run          	Disk                         Disk                         Run
+                	Accesses	          Accesses	           Time        	Accesses	         Accessed	           Time
+--------------------------------------------------------------------------------------------------------------------------------------------
+1		6437.98		286.029		296.828	6437.98		131.447		141.273			52.4%
+--------------------------------------------------------------------------------------------------------------------------------------------
+2		6437.98		211.929		215.086 	2967.40		1.845			9.824				95.4%
+--------------------------------------------------------------------------------------------------------------------------------------------
+3		4565.99		117.202		118.123	8.02			0.070			0.135				99.9%
+--------------------------------------------------------------------------------------------------------------------------------------------
+4		0.01			0.410			0.442		0.01			0.102			0.157				64.5%
+--------------------------------------------------------------------------------------------------------------------------------------------
+5		4565.99		13.258		24.066	8.02			0.018			0.164				99.3%
+--------------------------------------------------------------------------------------------------------------------------------------------
+6		4565.99		13.261		41.703	8.02			0.037			0.126				99.7%
+--------------------------------------------------------------------------------------------------------------------------------------------
+7		5813.00		28.504		133.186	5812.99		114.592		118.734			10.85%	 	 	 
+
+
+***********************************************************************************************
+==========================================================
+
+6. 给定一个你已有的数据，索引结构使哪些查询减速了，使哪些查询加速了？如果1,2,3类查询是常见的（75%的发生率），而4类是不常见的（25%的发生率），一些查询性能的提高是否超过了其他查询所降低的？如果1,2,3类查询的比率接近50%并且4类也占50%，那么你的想法会发生怎样改变？ 
+
+ANS：
+ 	对于现有的数据库数据来说，采用给出索引的查询，性能都有明显的提高。如果数据库经过分析发现使用索引可能增加检索时间或者没有明显效率提高，则数据库管理系统不会使用索引
+总体来说，采用索引是好的，至于具体使不使用，由DBMS决定。如果1，2，3类常见4类不常见，可能会使用检索，因为整体效率还是会提高的。如果1,2,3类占比和4类占比都是50%，可能不会使用索引，因为最后结果整体效率没有太明显的提高。
+
+===========================================================
+
+二. 为了研究学习，你正设计一个用于存储传感器记录的数据库。第一年，通过插入语句，将从感知器收集到的记录填充到数据库中。第一年以后，数据库主要用于查询通过select语句。你必须决定是否在最初或是等到第一年以后再索引数据库。从你已经证明的内容，你将在最初索引数据库还是等到第一年以后再做？解释。
+
+ANS:
+	我选择第一年后再建立索引。由于性能的原因，我认为最好等到数据库是静态的时候再设置索引（数据稳定基本不再改变）。索引会降低插入速度，将导致填充数据库时性能低下。当表变成静态时，添加索引后再查询运行得更快
+
+===========================================================
+
+三. 假设你被一个本地医院雇佣作为数据库专家组的一员。一位同事已经在PostgreSQL中实现了一个存储病人信息的表。要求你获取所有女病人的记录。 你写了一个查询select * from patient where gender='f'；你主要查询性能是比较差的。现在你那位实现病人表的同事不在，你有责任确定哪是错误的。你首先描述了病人的表格。
+hospital=# \d patient
+                 Table "patient"
+       Column       |     Type     |  Modifiers
+--------------------+--------------+-------------
+ id                 | integer      | not null
+ firstname          | text         | not null
+ lastname           | text         | not null
+ title              | text         |
+ admissiondate      | date         |
+ address            | text         |
+ gender             | char         | default 'f'
+ Indexes: patient_gender,
+         patient_id,
+         patient_firstname,
+         patient_lastname
+ Primary key: patient_pkey
+你注意到gender这一列被索引了并且你仍然不确定为什么查询性能是不好的。你决定在上述查询上运行一个解释分析。 由解释分析生成的输出如下：
+hospital=# explain SELECT * FROM patient WHERE gender='f';
+NOTICE:  QUERY PLAN:
+Seq Scan on patient  (cost=0.00..173.07 rows=6406 width=70)
+EXPLAIN
+你现在明白了为什么查询性能这么差了。尽管在gender上有一个索引，但它好像并没有被使用。 你给出了一个查询用于统计表格中男病人和女病人的数量。你发现两者的分布是各占50%。 解释一下为什么索引没有被使用。 对patient_gender进行聚类是否对性能有帮助？请解释。
+
+ANS:
+	因为男女性别分布为各占50%。数据库管理系统必须扫描每个磁盘块才能找到数据，因为每个磁盘块同时包含男性和女性记录的概率很高。如果索引是聚集的，则索引可用于扫描数据子集，从而提高性能。如果对patient_gender进行聚类，这将把所有男性和女性分组在一起，因此，必须读取大约50%的磁盘块，从而提升速度。
+
+
+============================================================
+
+四. 回忆一下PostgreSQL将表格统计信息存储到一个名为pg_class系统表中。查询规划师每次查询都要访问这个表。这些统计只能用分析命令进行更新。如果分析命令不经常运行，那么表中的统计信息或许是不正确的并且查询规划者或许做出一些会降低系统性能的不好的决策。对于一个策略为每一次查询生成这些统计信息（包括查找，增加，更新，删除）。这个方法可以让查询规划师能够得到最新的统计信息。为什么PostgreSQL不能做这项工作？
+
+ANS:
+	计算统计pg_class表中的每个查询允许PostgreSQL对于每个查询有最准确的统计数据，但这样会降低它每个查询的性能，查询规划者必须为所有查询生成这些统计信息，这样的话每个查询的性能将会降低。
+

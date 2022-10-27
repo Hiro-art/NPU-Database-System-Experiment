@@ -1,0 +1,67 @@
+装船
+EmpID	EmpName	OrderNo			ShipToAddr			       ShippedDate	TrackingNum
+1234		    Joe		   223		4615 Forbes Ave, Pittsburgh, PA 15147	12/21/99	 12435678
+2134		   Jones	   224		4615 Forbes Ave, Pittsburgh, PA 15147	12/25/99	 21345678
+
+
+Question:
+1.List the primary key. 
+ANS:	 TrackingNum
+
+
+
+2.List all the FDs(函数依赖).
+ANS:   
+	①EmpID——>EmpName
+	②OrderNo——>ShippedDate
+	③TrackingNum——>EmpID
+	④TrackingNum——>OrderNo
+	⑤OrderNo——>ShipToAddr
+	
+
+
+3.List all the update anomalies and provide an example of each.
+ANS:
+	更新异常：当你更改223号订单的地址时，224的地址也必须要被更改。
+	插入异常：当你想要增加一个新的订单的时候，你还必须得增加员工的数据。（eg.插入224订单时还要插入员工ID2134，姓名为Jones的员工信息）
+	删除异常：和插入异常非常类似，当你想要删除一个订单时，你还必须得删除一个员工信息（eg.删除订单编号为223的订单时，还得删除名字为Joe，ID为1234的员工信息）
+
+
+
+4.What normal form is the relation in? Explain. 
+ANS：
+	首先第一范式强调数据表的原子性，即数据表中的属性不可再分，容易得知上表表示符合第一范式。
+	其次，第二范式的成立首先要符合第一范式，并且要求数据表中的属性不存在非主属性对主码的部分依赖。我们上表中，主属性为TrackingNum，而部份依赖是指（X 的属性集中任一子集可以决定唯一的 Y）。由于除了TrackingNum以外都是非主属性，所以由第二问的FDs中的回答我们可以知道，上表中不存在非主属性对于主码的部份依赖。所以关系符合第二范式。
+	所以关系符合第一，第二范式。
+
+
+5.Apply normalization to it incrementally, bringing the relation to 3NF. That is, if the relation is unnormalized, bring it to first normal form, then bring the first normal form you've just created to second normal form, and then bring the second normal form to third normal form. 
+For each transformation to the next higher normal form X, 
+	o	Explain the steps you took to bring it to the normal form X. 
+	o	Provide the normal form X's table structure, primary key(s), and the FDs. 
+	o	Explain why you think it is in the normal form X. 
+That is, if the relation were in an unnormalized form, you would explain the transformation you performed to bring it to first, second, and third normal forms. You would also provide the table structure, the primary key, and the FDs for the first, second, and third normal forms. You would also provide explanation for why you believe it is in first, second, and third normal forms. 
+ANS:
+	由上述回答和结论已知上述关系符合第二范式，现在想要将其变换为符合第三范式，也就是要消除非主属性对于主码的传递依赖。
+	又因为TrackingNum<——>OrderNo——>ShipToAddr、TrackingNum<——>OrderNo——>ShippedDate这两个严格来说其中的TrackingNum和OrderNo是完全依赖关系，不符合传递依赖定义中的若 X —> Y, Y 不决定 X 且 Y —>Z所以这俩并不属于传递依赖。
+	所以原FDs存在以下传递依赖关系：TrackingNum——>EmpID——>EmpName。
+	依据现有FDs	将原表拆分为三个表，并且均符合第三范式：
+
+	①首先是将员工拆分出来，进而可以避免一部分插入删除异常。
+	Employee(EmpID,EmpName)
+		primary key=EmpID
+		FDs=EmpID——>EmpName
+	不存在非主属性对主码的部分和传递依赖。
+
+	②再者是将订单也单独拆分出来，成为一个单独的表。
+	Order(OrderNo,ShippedDate,ShipToAddr)
+		primary key=OrderNo
+		FDs=OrderNo——>ShipToAddr、OrderNo——>ShippedDate
+	不存在非主属性对主码的部分和传递依赖。
+		
+	③第三个是将配送信息单独拿出来作为一个表
+	Shipment(TrackingNum,EmpID,OrderNo)
+		primary key=TrackingNum
+		FDs=TrrackingNum->OrderNo、TrackingNum->EmpID
+	不存在非主属性对主码的部分和传递依赖。
+						

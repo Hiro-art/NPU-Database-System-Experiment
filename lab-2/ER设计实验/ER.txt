@@ -1,0 +1,124 @@
+Book（强实体）
+属性：Author （单值属性）一本书有唯一作者
+	Title （单值属性）一本书有唯一标题
+	ISBN （单值属性）一本书有唯一ISBN（primary key）
+	Edition （单值属性）一本书有唯一版本
+	Date of Publication （单值属性）一本书有唯一出版日期
+	Price （单值属性）一本书有唯一价格
+	Book Description （单值属性）一本书有唯一描述
+
+Categories（强实体）
+属性：Categories Name（单值属性）一个类别有唯一名称
+
+
+OrderItem（依赖于“Book”的弱实体）
+属性：Total price for each book that is ordered（单值属性）
+	Quantity of each item ordered（单值属性）
+
+
+Publisher（强实体）
+属性：Publisher Name （单值属性）一个出版商有唯一名字（primary key）
+	Address （单值属性）一个出版社有唯一地址
+
+
+Customer（强实体）
+属性：Name (first name, middle initial, and last name) （单值属性）一个客户有唯一姓名
+	Mailing Address （多值属性）一个客户可以有多个邮寄地址
+	VISA（多值属性）一个客户可以有多个信用卡
+	Phone Number (optional) （多值属性）每个顾客可以有多个电话号码
+	Email Address （多值属性）每个顾客可以有多个邮件地址
+	Customer ID（单值属性）为了引入主键引入（primary key）
+
+
+VISA（依赖于“Customer”的弱实体）
+属性：Available Balance（单值属性）一张信用卡有唯一余额信息
+	Cardholder Information（单值属性）一张信用卡有唯一持卡人
+	VISA ID	（单值属性）一个信用卡有唯一ID（primary key）
+	Expiration Date（单值属性）一张信用卡有唯一过期日期
+
+
+Order（强实体）
+属性：Order Number（单值属性）（一个订单只能有一个订单号）（primary key）
+	Mailing Address（单值属性）（一个订单只能由唯一的邮寄地址）
+	VISA（单值属性）（一个订单只能由一个信用卡付账）
+	Method of Shipment（单值属性）（只能是next day delivery, regular post二者之一）
+	Shipping Date（单值属性）（一个订单只能有唯一发送日期）
+	Date and Time of Order（单值属性）（一个订单只能有唯一下单日期）
+
+
+Fulfilled Order（强实体）
+属性：Order Number （单值属性）（每个订单有唯一的订单号）
+	Date of Shipment （单值属性）（每个订单有唯一发货日期）
+	Tracking Number （单值属性）（每个订单物流号码唯一）（primary key）
+	Date of Expected Delivery （单值属性）（每个订单预期交货时间唯一）
+	Titles Shipped and their Quantity（复合属性）（包含属性Titles和Quantity）
+
+
+Price Of Order（依赖于“Order”的弱实体）
+属性：ISBN and Price of each Book Title (list price and purchase price after discount) （复合属性）（primary key）
+	Quantity Purchased (for each book title bought) （单值属性）每笔订单购买数量唯一
+	Shipping Cost （单值属性）每笔订单运费唯一
+	Tax （单值属性）每笔订单税费唯一
+
+
+Promotion（依赖于“Book”的弱实体）
+属性：Books being Promoted （多值属性）（一次促销可以有多本书）
+	Percentage Discount Points （单值属性）（一次促销只能有唯一折扣）
+	Duration of Promotion （复合属性）（包括属性start date 和 end date） 
+	Promotion ID（单值属性）为了主键引入（primary key）
+
+
+
+关系：Publisher—Book（Publisher publish Book）
+约束：N:N ，同一本书可以有多个出版社出版，一个出版社也可以出版多本书
+参与：书是全部参与，出版社是部分参与
+
+
+关系：Book——Categories（Book  belong to Categories）
+约束：N：N，一个类别下可以有很多书，一本书也可以属于多个类别
+参与：书全部参与，Categories是全部参与
+
+
+关系：Categories——Categories（Categories  has Categories）
+约束：1：N，一个类别下可以有很多个子类别
+参与：父类别部分参与，子类别全部参与
+
+
+关系：Promotion——Book（Promotion promote Book）
+约束：N:N,一次促销活动可以包括很多书，一本书也可以参与多个促销活动
+参与：书是部分参与，促销活动是全部参与
+
+
+关系：Book——OrderItem（Book  in OrderItem）
+约束：1：N，一本书可以在多个OrderItem中，一个OrderItem中一本书只能出现一次
+参与：书全部参与，OrderItem是部分参与
+
+
+关系：OrderItem——Fullfilled Order（Fullfilled Order track OrdeItem）
+约束：N：1，一个OrderItem能追踪多个已发货订单物流，一个OrderItem只有一个已发货订单物流
+参与：FullfilledOrder 是全部参与（1..1），OrderItem是全部参与（1..N）
+
+
+关系：Order——OrderItem（Order contain OrderItem）
+约束：1：N，一个Order可以有多个OrderItem，一个OrderItem只能属于一个Order
+参与：两者均是全部参与。前者为（1...1）全部参与，后者为（1...N）全部参与
+
+
+关系：Customer——Order（Customer order Order）
+约束：1：N，一个Customer可以有多个订单，一个订单只能属于一个Customer
+参与：Customer是全部参与（1..1），Order是全部参与（1..N）
+
+
+关系：Order——Price of Order（Order has Price of order）
+约束：1:1，一个Order只有唯一Price
+参与：都是全部参与
+
+
+关系：Customer——VISA（Customer has VISA）
+约束：1：N，一个Customer可以有多个VISA，一个VISA只能属于一个Customer
+参与：Customer是全部参与（1..1），Order是全部参与（1..N）
+
+
+关系：VISA——Order（VISA pay Order）
+约束：1：N，一个VISA可以支付多个Order，一个Order只能被一个VISA支付。
+参与：VISA是全部参与（1..1），Order是全部参与（1..N）

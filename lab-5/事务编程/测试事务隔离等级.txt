@@ -1,0 +1,168 @@
+第二部分 测试事务隔离等级
+
+1.运行SQL script建立一个小的银行数据库，account关系包含两列，用户id和账户余额。有两行数据，定期储蓄账户（id为1）和活期储蓄账户（id为2）。
+ANS:
+create table account
+(
+   id int,
+   balance float,
+   Primary Key(id) 
+);
+insert into account values (1, 105.59 );
+insert into account values (2, 1050.59 );
+
+--drop table account cascade;
+
+
+2.开始两个PostgreSQL窗口会话。
+ANS：
+window1
+window2
+
+
+3.两个窗口都开始一个新事务。
+ANS:
+window1:BEGIN TRANSACTION;
+window2:BEGIN TRANSACTION;
+
+
+4.第一个窗口，将活期储蓄账户余额更改为455.66。
+ANS:
+update account
+set balance = 455.66
+where id = 2;
+
+
+5.第一个窗口，查询account关系所有行，结果拷贝入isolation.txt文档中，用序号标识出数据来自于窗口一。
+ANS:
+select *
+from account;
+
+输出结果：
+window1:
+行号		id(integer)		balance(double precision)
+1		1			105.59
+2		2			455.66
+
+
+6.第二个窗口，查询account关系所有行，结果拷贝入isolation.txt文档中，用序号标识出数据来自于窗口二。
+ANS:
+select *
+from account;
+
+输出结果：
+window2:
+行号		id(integer)		balance(double precision)
+1		1			105.59
+2		2			1050.59
+
+
+7.第一个窗口，提交事务。
+ANS:
+winow1:COMMIT;
+
+
+8.第二个窗口，查询account表所有行，结果拷贝入isolation.txt文档中，用序号标识出数据来自于窗口二。窗口一的数据更新是否生效？为什么？将解释部分写入isolation.txt文档中。
+ANS:
+select *
+from account;
+
+输出结果：
+window2：
+行号		id(integer)		balance(double precision)
+1		1			105.59
+2		2			455.66
+
+解释说明：
+window1的数据更新生效。因为window1未提交之前，window2无法读取到其中的数据修改信息，而当window1提交之后，window2再次读取就可以读取到window1中事务提交后修改数据库之后数据库中被window1修改过的信息。
+
+
+9.第二个窗口，提交事务。
+ANS：
+window2：COMMIT；
+
+
+10.两个窗口都开始一个新事务。
+ANS：
+window1:BEGIN TRANSACTION;
+window2:BEGIN TRANSACTION;
+
+
+11.第二个窗口设置事务隔离等级为串行化，将SQL语句写入isolation.txt文档中。
+ANS：
+SET TRANSACTION  ISOLATION LEVEL  SERIALIZABLE;
+
+
+12.第一个窗口，设置活期储蓄账户余额为1400。
+ANS:
+update account
+set balance = 1400
+where id = 2;
+
+
+13.第二个窗口，设置定期储蓄账户余额为1。
+ANS：
+update account
+set balance = 1
+where id = 1;
+
+
+14.在两个窗口内查询account关系的所有行。用序号标识出数据来源于窗口一或二。
+ANS：
+select *
+from account;
+
+输出结果：
+window1：
+行号		id(integer)		balance(double precision)
+1		1			105.59
+2		2			1400
+
+window2：
+行号		id(integer)		balance(double precision)
+1		2			455.66
+2		1			1
+
+
+15.第一个窗口，提交事务。
+ANS:
+COMMIT;
+
+
+16.第二个窗口，查询account关系所有行。活期储蓄账户值是否更新？为什么？第一个窗口的定期储蓄账户值是否更新？为什么？将解释语句写入isolation.txt文档中。
+ANS:
+select *
+from account;
+
+输出结果：
+window1：
+行号		id(integer)		balance(double precision)
+1		1			105.59
+2		2			1400
+
+window2：
+行号		id(integer)		balance(double precision)
+1		2			455.66
+2		1			1
+
+解释说明：
+window2活期账户值没有更新，window1定期账户值没有更新，因为两个事务为串行化的隔离等级，window2无法读取window1同时进行的数据更改。
+
+
+17.第二个窗口提交事务。在两个窗口查询数据。将结果拷贝入isolation.txt文档中，用序号标识出数据来源，并解释产生为何会产生此结果。将答案拷贝入isolation.txt文档中。
+ANS：
+select *
+from account;
+
+输出结果：
+window1：
+行号		id(integer)		balance(double precision)
+1		1			1
+2		2			1400
+window2：
+行号		id(integer)		balance(double precision)
+1		1			1
+2		2			1400
+
+解释说明：
+此时两个事务均已提交到数据库，所以两个窗口重新读取时读取到的是两个事务进行修改过后的数据结果，所以两个窗口查询的结果是一样的。

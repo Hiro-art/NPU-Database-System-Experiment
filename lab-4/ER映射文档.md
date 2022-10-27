@@ -1,0 +1,203 @@
+### 1. 对于每个强实体类型 E. 创建一个新表。包括 E 的复合属性的所有简单属性和简单组件作为其列。标识主键和备用键。不要包含任何多值属性作为键。如果实体的唯一唯一字段是多值属性，请引入人工主键字段。
+
+### Publisher
+
+EMP(PublisherID, PublisherName, PublisherAddress)
+
+PK:	PublisherID
+
+AK:	PublisherName，PublisherAddress
+
+
+
+### Book
+
+EMP(title, ISBN, Edition，DateOfPublication，price，bookDescription)
+
+PK:	ISBN
+
+FK:	(PublisherID) -> Publisher(PublisherID)
+
+
+
+### Category
+
+EMP(Category_ID, Category_Name)
+
+PK:	Category_ID
+
+AK:	Category_Name
+
+
+
+### Author
+
+EMP(AuthorName, AuthorID)
+
+PK:	AuthorID
+
+
+
+### Customer
+
+EMP(CustomerID,Customer_FirstName, Customer_MiddleName,Customer_LastName,MailingAddress,CreditCardNumber,ExpirationDate,PhoneNumber,EmailAddress)
+
+PK:	CustomerID
+
+AK:	ExpirationDate, CreditCardNumber
+
+
+
+### Promotion
+
+EMP(PromotionIDNumber,Percentage_Discount_Points)
+
+PK:	PromotionIDNumber
+
+
+
+### Shipment
+
+EMP(DateOfShip,TrackingNumber,DateOfExpectedDelivery)
+
+PK:	TrackingNumber
+
+
+
+### order_
+
+EMP(OrderNumber,MailingAddress,MethodOfShipment,DateAndTimeOfOrder)
+
+PK:	OrderNumber
+
+FK:	(CustomerID)->Customer(CustomerID)
+
+
+
+### 2.对于仅与一个 1：1 标识所有者关系关联的每个弱实体 W。标识所有者实体类型的表 T。作为 T 的列，包括 W 的复合属性的所有简单属性和简单组件。
+
+无
+
+
+
+### 3.对于与 1：N 或 M：N 标识关系关联或参与多个关系的每个弱实体 W。创建一个新表 T.将 W 的复合属性的所有简单属性和简单组件作为其列包括在内。按如下方式形成 T 的主键：在 1：N 所有者关系的情况下，通过在 T 中包含所有者实体的主键作为外键。T 的主键是 W 的部分键和外键的组合。对于 M：N 所有者关系，通过创建将保存唯一值的新列。（在这种情况下，弱实体与其所有者实体之间的关联将在步骤 6 中指定。
+
+### LineItem（弱实体）
+
+EMP(OrderNumber,TrackingNumber,ISBN,Total_price_for_each_book_that_is_ordered,Quantity_of_each_item_ordered)
+
+PK:	(OrderNumber,ISBN)
+
+FK:	(OrderNumber)->Order_(OrderNumber)
+
+​		 (TrackingNumber)->Shipment(TrackingNumber)
+
+​		 (ISBN)->Book(ISBN)
+
+
+
+### 4.对于每个二进制 1：1 关系类型 R.标识参与实体类型的表 S 和 T。选择 S（最好是完全参与的那个）。作为外键包含在 S 中，T 的主键。作为 S 的列包含 R 的复合属性的所有简单属性和简单分量。
+
+无
+
+
+
+### 5.对于每个二进制 1：N 关系类型 R.标识参与实体的表 S（在 N 侧）和 T。作为外键包含在 S 中，T 的主键。作为 S 的列包含 R 的所有简单属性和复合属性的简单组件。
+
+### Book
+
+EMP(title, ISBN, Edition，DateOfPublication，price，bookDescription，PublisherID)
+
+PK:	ISBN
+
+FK:	(PublisherID) -> Publisher(PublisherID)
+
+
+
+### Category
+
+EMP(Category_ID, Category_Name，superid)
+
+PK:	Category_ID
+
+FK:	(superid)->Category(Category_ID)
+
+​		 (ISBN)->Book(ISBN)
+
+AK:	Category_Name
+
+
+
+### order_
+
+EMP(CustomerID，OrderNumber,MailingAddress,MethodOfShipment,DateAndTimeOfOrder)
+
+PK:	OrderNumber
+
+FK:	(CustomerID)->Customer(CustomerID)
+
+
+
+### 6.对于每个 N 元关系（包括二进制 N：M 关系）类型 R.创建新表 T. 作为 T 的列包括 R 的复合属性的所有简单属性和简单组件。作为外键包括参与（强或弱）实体类型的主键。指定外键列表为 T 的主键。
+
+### category_relate_book(多对多关系)
+
+EMP(Category_ID,ISBN)
+
+PK:	(Category_ID,ISBN)
+
+FK:	(Category_ID)->Category(Category_ID)
+
+​		 (ISBN)->Book(ISBN)
+
+
+
+### Book_relate_Author（多对多关系）
+
+EMP(ISBN,AuthorID)
+
+PK:	(ISBN, AuthorID)
+
+FK:	(ISBN)->Book(ISBN)
+
+​		 (AuthorID)->Author(AuthorID)
+
+
+
+### book_relate_promotion（多对多关系）
+
+EMP(PromotionIDNumber,ISBN)
+
+PK:	(PromotionIDNumber,ISBN)
+
+FK:	(PromotionIDNumber) >Promotion(PromotionIDNumber)
+
+​		  (ISBN)->Book(ISBN)
+
+
+
+### 7. 对于每个多值属性 A. 创建一个新表 T. 将属性 A 的简单属性或简单组件作为 T 的列包括在内。在表 T 中，将具有 A 的实体或关系类型的主键作为外键包括在内。将外键指定为 T 的主键、外键和与 A 对应的列。
+
+### Total_Price_of_Order（多值属性）
+
+EMP(OrderNumber,TotalPrice)
+
+PK:	(OrderNumber,TotalPrice)
+
+FK:	(OrderNumber)->Order_(OrderNumber)
+
+
+
+### Duration_of_promotion（多值属性）
+
+EMP(PromotionIDNumber,startDate,endDate)
+
+PK:	(PromotionIDNumber,Date)
+
+FK:	(PromotionIDNumber)->Promotion(PromotionIDNumber)
+
+
+
+
+
+

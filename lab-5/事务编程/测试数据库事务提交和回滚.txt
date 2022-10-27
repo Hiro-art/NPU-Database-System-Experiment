@@ -1,0 +1,101 @@
+第一部分：测试数据库事务提交和回滚
+
+1．运行SQL script建立一个小的银行数据库，account关系包含两列，用户id和账户余额。有两行数据，定期储蓄账户（id为1）和活期储蓄账户（id为2）。
+ANS:	
+create table account
+(
+   id int,
+   balance float,
+   Primary Key(id) 
+);
+
+insert into account values (1, 105.59 );
+insert into account values (2, 1050.59 );
+--drop table account cascade;
+
+
+2．开始一个新事务。
+ANS:
+BEGIN TRANSACTION 
+
+
+3．查询活期储蓄账户余额，将查询结果拷贝到rollback.txt文档中。
+ANS:
+select balance
+from account 
+where id = 2;
+
+输出结果：  
+行号	balance
+1	1050.59
+
+
+4．删除定期和活期两个储蓄账户，将SQL语句拷贝到rollback.txt文档中。
+ANS:
+delete from account;
+输出结果：
+无（select查询时输出为除了标题什么都没有的表）
+
+
+
+5．查询两个账户的信息，将结果拷贝入rollback.txt文档中。
+ANS：
+select * from account
+
+输出结果：
+无输出
+
+
+6．回滚事务。
+ANS：
+rollback;
+
+
+7．查询两个账户的余额，将结果拷贝入rollback.txt文档中。
+ANS：
+select balance
+from account;
+
+输出结果：
+行号		balance double precision
+1		105.59
+2		1050.59
+
+
+8．开始一个新事务。
+ANS:
+BEGIN TRANSACTION ;
+
+
+9．删除定期储蓄账户，将SQL语句拷贝入rollback.txt文档中。
+ANS:
+delete from account
+where id = 1;
+
+
+10．查询表account的所有行，将结果拷贝入rollback.txt文档中。
+ANS:
+select * from account
+
+输出结果：
+行号		id(integer)		balance(double precision)
+1		2			1050.59
+
+
+11．提交事务。
+ANS:
+COMMIT; 
+
+
+12．	尝试回滚刚刚提交的事务。查询表中存储的值。解释说明事务提交和回滚产生的不同影响。将结果写入rollback.txt文档中。
+ANS:
+ROLLBACK;
+
+输出结果：
+注意:  没有事物在运行中
+ROLLBACK
+
+Query returned successfully in 38 msec.
+
+解释说明：
+首先事务的提交会保存从“BEGIN TRANSACTION ;”开始到“COMMIT; ”之间的所有结果，然而ROLLBACK会撤销者之间的所有操作。当前并没有正在运行的事务，所以当我们回滚的时候会报错。
